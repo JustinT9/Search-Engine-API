@@ -4,7 +4,7 @@ from src.api import getDocuments
 """
 Unit Tests for getDocuments()
 """
-class TestSearchQuery(unittest.TestCase):
+class TestGetDocuments(unittest.TestCase):
     """
     Test basic functionality with a non-empty .txt document.
     """
@@ -29,8 +29,6 @@ class TestSearchQuery(unittest.TestCase):
         self.assertTrue(doc['url'] != None)
         self.assertTrue(len(doc['text']) == 0)
         self.assertTrue(len(doc['text']) == doc['text_length'])
-
-        
 
 if __name__ == "__main__":
     unittest.main()
