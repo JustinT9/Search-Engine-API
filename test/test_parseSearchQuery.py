@@ -1,5 +1,5 @@
 import unittest
-from src.parseSearchQuery import parseSearchQuery 
+from src.api import parseSearchQuery 
 
 """
 Unit Tests for Parse Search Query
