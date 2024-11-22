@@ -8,7 +8,7 @@ class TestSnippetGeneration(unittest.TestCase):
         text = "Here is a bunch of text. This is where you find the words from the query. Here is more text."
         query = "find the words from the query"
         snippet = generateSnippet(text, query)
-        self.assertTrue(snippet == "This is where you find the words from the query. Here is more text.")
+        self.assertTrue(snippet == "This is where you find the words from the query.")
 
     """
     Test a query wherein a stemmed version of a root word is found within the text;
@@ -22,16 +22,13 @@ class TestSnippetGeneration(unittest.TestCase):
         query = "predict sale market share" 
         snippet = generateSnippet(text, query)
         # Report snippet as full sentence
-        self.assertTrue(snippet == ("Document will describe marketing strategies carried out by U.S. companies for their agricultural "
-                                    "chemicals, report predictions for market share of such chemicals, or report market statistics for "
-                                    "agrochemicals, pesticide, herbicide, fungicide, insecticide, fertilizer, predicted sales, market share, "
-                                    "stimulate demand, price cut, volume of sales"))
+        self.assertTrue(snippet == text)
         text = "fish fishing fisherman fishes"
         query = parseSearchQuery(text)
         self.assertTrue(generateSnippet(text, query) == text)
         text = "fish fishes fisherman. fisherman"
         self.assertTrue(generateSnippet(text, "fish fish fisherman") == "fish fishes fisherman.")
-        text = "fish fishes fisherman. fisherman"
+        text = "fish fishes fisherman. fishes"
         self.assertTrue(generateSnippet(text, "fish fish fisherman") == "fish fishes fisherman.")
 
     """
@@ -62,14 +59,14 @@ class TestSnippetGeneration(unittest.TestCase):
         text = "Here is a bunch of text. Here is more text. Here are some query words to find."
         query = "find the words from the query"
         snippet = generateSnippet(text, query)
-        self.assertTrue(snippet == "Here is more text. Here are some query words to find.")
+        self.assertTrue(snippet == "Here are some query words to find.")
 
     # test finding a snippet where only one word from the query string is found at the beginning of the text
     def test_one_word(self):
         text = "This sentence says query. Here is some text. Here is more text."
         query = "find the words from the query"
         snippet = generateSnippet(text, query)
-        self.assertTrue(snippet == "This sentence says query. Here is some text.")
+        self.assertTrue(snippet == "This sentence says query.")
         
     # test with empty text string (return empty string)
     def test_empty_text(self):

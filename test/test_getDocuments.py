@@ -42,6 +42,13 @@ class TestGetDocuments(unittest.TestCase):
         self.assertTrue(len(doc['text']) == doc['text_length'])
         self.assertTrue(doc['type'] != 'txt')
         self.assertTrue(doc['type'] == 'html')
+        
+    """
+    Test fetching a document ID that does not exist
+    """
+    def test_bad_id(self):
+        bad_id = 'id_that_doesnt_match_anything'
+        self.assertTrue(doc == None)
 
 if __name__ == "__main__":
     unittest.main()
