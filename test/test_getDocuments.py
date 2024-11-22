@@ -30,5 +30,18 @@ class TestGetDocuments(unittest.TestCase):
         self.assertTrue(len(doc['text']) == 0)
         self.assertTrue(len(doc['text']) == doc['text_length'])
 
+    """
+    Test fetching a document that is not a txt document, but is an HTML document.
+    """
+    def test_html(self):
+        html_id = 'id_for_html'
+        doc = getDocuments(html_id)
+        self.assertTrue(doc != None)
+        self.assertTrue(doc['_id'] == html_id)
+        self.assertTrue(doc['url'] != None)
+        self.assertTrue(len(doc['text']) == doc['text_length'])
+        self.assertTrue(doc['type'] != 'txt')
+        self.assertTrue(doc['type'] == 'html')
+
 if __name__ == "__main__":
     unittest.main()
