@@ -106,7 +106,7 @@ def generateQueries(tokenizedQuery):
         rankedDocumentIds = rankingAPI(structuredQuery)
 
         # Proceed to retrieveDocuments()
-        retrieveDocuments(rankedDocumentIds)
+        retrieveDocuments(rankedDocumentIds, tokenizedQuery)
 
         return structuredQuery
 
@@ -115,12 +115,13 @@ def generateQueries(tokenizedQuery):
         return {}
 
 
-def retrieveDocuments(rankedDocumentIds):
+def retrieveDocuments(rankedDocumentIds, tokenizedQuery):
     """
     Retrieves documents based on ranked document IDs.
 
     Args:
         rankedDocumentIds (list): A list of document IDs from the Ranking API.
+        tokenizedQuery (list): Tokenized and preprocessed query from parseSearchQuery().
 
     Returns:
         retrievedDocuments (list): Contains document metadata, titles, links, and text content.
@@ -133,6 +134,7 @@ def retrieveDocuments(rankedDocumentIds):
         for docId in rankedDocumentIds:
             document = documentDataStoreAPI(docId)
             if document:
+                document.update({"snippet": generateSnippet(document["content"], tokenizedQuery)})
                 retrievedDocuments.append(document)
 
         # Log document retrieval times
@@ -148,6 +150,46 @@ def retrieveDocuments(rankedDocumentIds):
         logging.error(f"Error in retrieveDocuments: {str(e)}")
         return []
 
+def generateSnippet(documentContent, tokenizedQuery):
+    """
+    Generates snippet from document data
+
+    Args:
+        documentContent: String containing the full content of the document.
+        tokenizedQuery (list): Tokenized and preprocessed query from parseSearchQuery().
+
+    Returns:
+        snippet: Snippet string for document
+    """
+    try:
+        snippet = ""
+        maxWordCount = 0
+
+        # Get each individual sentence in document
+        sentences = nltk.sent_tokenize(documentContent)
+        
+        for sentence in sentences:
+            wordCount = 0
+            # tokenize sentence using same method as query
+            words = nltk.word_tokenize(sentence)
+            words = [word.lower() for word in words if word.isalnum()]
+            stemmer = PorterStemmer()
+            words = [stemmer.stem(word) for word in words]
+            # Count how many words in the query are in the current sentence
+            for queryWord in tokenizedQuery:
+                for docWord in words:
+                    if queryWord == docWord: 
+                        wordCount = wordCount + 1
+            # If sentence has more query words than current snippet, it is the new snippet
+            if wordCount > maxWordCount:
+                snippet = sentence
+                maxWordCount = wordCount
+        
+        return snippet
+    
+    except Exception as e:
+        logging.error(f"Error in generateSnippet: {str(e)}")
+        return ""
 
 def sendDocuments(processedDocuments):
     """
