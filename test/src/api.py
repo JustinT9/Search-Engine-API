@@ -4,10 +4,11 @@ import threading
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
+
 import string
 import json
 import time
-
+from pymongo import MongoClient
 # Set up logging
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -106,7 +107,7 @@ def generateQueries(tokenizedQuery):
         rankedDocumentIds = rankingAPI(structuredQuery)
 
         # Proceed to retrieveDocuments()
-        retrieveDocuments(rankedDocumentIds, tokenizedQuery)
+        retrieveDocuments(rankedDocumentIds)
 
         return structuredQuery
 
@@ -115,13 +116,12 @@ def generateQueries(tokenizedQuery):
         return {}
 
 
-def retrieveDocuments(rankedDocumentIds, tokenizedQuery):
+def retrieveDocuments(rankedDocumentIds):
     """
     Retrieves documents based on ranked document IDs.
 
     Args:
         rankedDocumentIds (list): A list of document IDs from the Ranking API.
-        tokenizedQuery (list): Tokenized and preprocessed query from parseSearchQuery().
 
     Returns:
         retrievedDocuments (list): Contains document metadata, titles, links, and text content.
@@ -134,7 +134,6 @@ def retrieveDocuments(rankedDocumentIds, tokenizedQuery):
         for docId in rankedDocumentIds:
             document = documentDataStoreAPI(docId)
             if document:
-                document.update({"snippet": generateSnippet(document["content"], tokenizedQuery)})
                 retrievedDocuments.append(document)
 
         # Log document retrieval times
@@ -150,46 +149,6 @@ def retrieveDocuments(rankedDocumentIds, tokenizedQuery):
         logging.error(f"Error in retrieveDocuments: {str(e)}")
         return []
 
-def generateSnippet(documentContent, tokenizedQuery):
-    """
-    Generates snippet from document data
-
-    Args:
-        documentContent: String containing the full content of the document.
-        tokenizedQuery (list): Tokenized and preprocessed query from parseSearchQuery().
-
-    Returns:
-        snippet: Snippet string for document
-    """
-    try:
-        snippet = ""
-        maxWordCount = 0
-
-        # Get each individual sentence in document
-        sentences = nltk.sent_tokenize(documentContent)
-        
-        for sentence in sentences:
-            wordCount = 0
-            # tokenize sentence using same method as query
-            words = nltk.word_tokenize(sentence)
-            words = [word.lower() for word in words if word.isalnum()]
-            stemmer = PorterStemmer()
-            words = [stemmer.stem(word) for word in words]
-            # Count how many words in the query are in the current sentence
-            for queryWord in tokenizedQuery:
-                for docWord in words:
-                    if queryWord == docWord: 
-                        wordCount = wordCount + 1
-            # If sentence has more query words than current snippet, it is the new snippet
-            if wordCount > maxWordCount:
-                snippet = sentence
-                maxWordCount = wordCount
-        
-        return snippet
-    
-    except Exception as e:
-        logging.error(f"Error in generateSnippet: {str(e)}")
-        return ""
 
 def sendDocuments(processedDocuments):
     """
@@ -278,14 +237,14 @@ def documentDataStoreAPI(docId):
     Returns:
         document (dict): Contains document metadata, title, link, and text content.
     """
-    # Mock document
-    document = {
-        "id": docId,
-        "title": f"Document Title {docId}",
-        "link": f"http://example.com/doc/{docId}",
-        "content": f"This is the content of document {docId}."
-    }
-    return document
+    processingQueue.join()
+    client = MongoClient("mongodb://128.113.126.79:27017")
+    db = client.test
+    collection = db.RAW
+    result = collection.find()
+    for i in result:
+        print(i)
+    return result
 
 
 # Start the processing thread
@@ -295,8 +254,8 @@ processingThread.start()
 # Example usage
 if __name__ == "__main__":
     # Simulate receiving queries from users
-    receiveQuery("OpenAI develops advanced AI models.", userId=1)
-    receiveQuery("Python programming language tutorial.", userId=2)
+    #receiveQuery("OpenAI develops advanced AI models.", userId=1)
+    #receiveQuery("Python programming language tutorial.", userId=2)
 
     # Wait for the processing queue to be empty
-    processingQueue.join()
+    documentDataStoreAPI('xddqb140kx4q4i0qisodfm12')
