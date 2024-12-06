@@ -1,57 +1,70 @@
-import logging
+import time
 import queue
 import threading
+import json
+import logging
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
-
-import string
-import json
-import time
 from pymongo import MongoClient
-# Set up logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Initialize a processing queue
 processingQueue = queue.Queue()
 
-# Ensure NLTK data is downloaded
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
+def getNLTKData(): 
+    try:
+        nltk.data.find('tokenizers/punkt_tab')
+    except LookupError:
+        nltk.download('punkt_tab')
 
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords')
+    try:
+        nltk.data.find('corpora/stopwords')
+    except LookupError:
+        nltk.download('stopwords')
 
+"""
+    Processes queries from the processing queue.
+"""
+def processQueue():
+    while True:
+        try:
+            # Get the next query from the queue
+            query, userId = processingQueue.get()
 
-def receiveQuery(query, userId=None):
-    """
-    Receives a search query string from the user, logs it, and adds it to the processing queue.
+            # Process the query
+            parseSearchQuery(query)
+
+            # Mark the task as done
+            processingQueue.task_done()
+        except Exception as e:
+            logging.error(f"Error in processQueue: {str(e)}")
+
+"""
+    Receives a search query string from the user via UI/UX, logs it, and adds it to the 
+    processing queue.
 
     Args:
         query (str): The search query string from the user.
         userId (optional): User identifier for tracking.
 
     Returns:
-        None
-    """
+        True if query was successfully added; otherwise false. 
+"""
+def receiveQuery(query, userId=None):
     try:
         # Log the received query
         logging.info(f"Received query from user {userId}: {query}")
 
         # Add the query to the processing queue
         processingQueue.put((query, userId))
-
+        
+        return True 
+    
     except Exception as e:
         logging.error(f"Error in receiveQuery: {str(e)}")
 
+        return False
 
-def parseSearchQuery(query):
-    """
+"""
     Processes the raw query string, tokenizes it, removes stop words and punctuation,
     and applies stemming or lemmatization.
 
@@ -60,7 +73,8 @@ def parseSearchQuery(query):
 
     Returns:
         tokenizedQuery (list): Cleaned and normalized tokens for the next step.
-    """
+"""
+def parseSearchQuery(query):
     try:
         # Tokenize the query
         tokens = nltk.word_tokenize(query)
@@ -76,38 +90,28 @@ def parseSearchQuery(query):
         stemmer = PorterStemmer()
         tokens = [stemmer.stem(word) for word in tokens]
 
-        # Proceed to the next step
-        generateQueries(tokens)
-
         return tokens
 
     except Exception as e:
         logging.error(f"Error in parseSearchQuery: {str(e)}")
         return []
 
-
-def generateQueries(tokenizedQuery):
-    """
+"""
     Formats the tokenized query into structured queries for ranking.
 
     Args:
-        tokenizedQuery (list): Tokenized and preprocessed query from parseSearchQuery().
+        tokens (list): Tokenized and preprocessed query from parseSearchQuery().
 
     Returns:
         structuredQuery (dict): Formatted query ready for ranking.
-    """
+"""
+def generateQueries(tokens):
     try:
         # Create a structured query
         structuredQuery = {
             "operation": "AND",
-            "terms": tokenizedQuery
+            "terms": tokens
         }
-
-        # Simulate interaction with the Ranking API
-        rankedDocumentIds = rankingAPI(structuredQuery)
-
-        # Proceed to retrieveDocuments()
-        retrieveDocuments(rankedDocumentIds)
 
         return structuredQuery
 
@@ -116,8 +120,39 @@ def generateQueries(tokenizedQuery):
         return {}
 
 
-def retrieveDocuments(rankedDocumentIds):
-    """
+"""
+    Mock function to simulate interaction with the Ranking API.
+
+    Args:
+        None 
+
+    Returns:
+        rankedDocumentIds (list): A list of ranked document IDs.
+"""
+def mockRankingAPI():
+    return [1, 2, 3, 4, 5]
+
+"""
+    Function to fetch document metadata and content from the Document Data Store API.
+
+    Args:
+        docId (int): Document ID.
+
+    Returns:
+        document (dict): Contains document metadata, title, link, and text content.
+"""
+def documentDataStoreAPI(docId):
+    # processingQueue.join()
+    client = MongoClient("mongodb://128.113.126.79:27017")
+    db = client.test
+    collection = db.RAW
+    result = collection.find()
+    for i in result:
+        print(i)
+    return result
+
+
+"""
     Retrieves documents based on ranked document IDs.
 
     Args:
@@ -125,14 +160,15 @@ def retrieveDocuments(rankedDocumentIds):
 
     Returns:
         retrievedDocuments (list): Contains document metadata, titles, links, and text content.
-    """
+"""
+def retrieveDocuments():
     try:
         startTime = time.time()
 
         # Fetch documents from the Document Data Store API
         retrievedDocuments = []
-        for docId in rankedDocumentIds:
-            document = documentDataStoreAPI(docId)
+        for docID in mockRankingAPI():
+            document = documentDataStoreAPI(docID)
             if document:
                 retrievedDocuments.append(document)
 
@@ -140,7 +176,6 @@ def retrieveDocuments(rankedDocumentIds):
         retrievalTime = time.time() - startTime
         logging.info(f"Document retrieval time: {retrievalTime:.2f} seconds")
 
-        # Proceed to sendDocuments()
         sendDocuments(retrievedDocuments)
 
         return retrievedDocuments
@@ -149,9 +184,7 @@ def retrieveDocuments(rankedDocumentIds):
         logging.error(f"Error in retrieveDocuments: {str(e)}")
         return []
 
-
-def sendDocuments(processedDocuments):
-    """
+"""
     Sends the processed documents to the UI/UX for display.
 
     Args:
@@ -159,7 +192,8 @@ def sendDocuments(processedDocuments):
 
     Returns:
         None
-    """
+"""
+def sendDocuments(processedDocuments):
     try:
         startTime = time.time()
 
@@ -193,69 +227,49 @@ def sendDocuments(processedDocuments):
         responseJson = json.dumps(response, indent=2)
         print(responseJson)
 
+def receiveQueryTest(): 
+    assert receiveQuery("hello", "user1") == True  
+    assert receiveQuery("hello world", "user2") == True 
+    assert receiveQuery("HelLo", "user1") == True 
+    assert receiveQuery("HeLLo WorLd", "user3") == True
+    assert receiveQuery("to", "user4") == True 
+    assert receiveQuery("To be, or not to be", "user5") == True
+    assert receiveQuery("C++ programming guide: variables & pointers (2024)!", "user5") == True
+    assert receiveQuery("there are fishies in the pond", "user5") == True 
+    assert receiveQuery("\"exact phrase search\"", "user6") == True 
+    assert receiveQuery("", "user7") == True
+    assert receiveQuery("a", "user8") == True 
+    assert receiveQuery("   cat and dog   ", "user8") == True 
 
-def processQueue():
-    """
-    Processes queries from the processing queue.
-    """
-    while True:
-        try:
-            # Get the next query from the queue
-            query, userId = processingQueue.get()
+def parseSearchQueryTest():
+    assert parseSearchQuery("hello") == ["hello"]
+    assert parseSearchQuery("HeLLo WorLd") == ["hello", "world"]
+    assert parseSearchQuery("HeLlo") == ["hello"]
+    assert parseSearchQuery("HeLLo WorLd") == ["hello", "world"]
+    assert parseSearchQuery("to") == []
+    assert parseSearchQuery("To be, or not to be") == []
+    assert parseSearchQuery("C++ programming guide: variables & pointers (2024)!") == ["program", "guid", "variabl", "pointer", "2024"]
+    assert parseSearchQuery("there are fishies in the pond") == ["fishi", "pond"]
+    assert parseSearchQuery("\"exact phrase search\"") == ["exact", "phrase", "search"]
+    assert parseSearchQuery("") == []
+    assert parseSearchQuery("a") == []
+    assert parseSearchQuery("   cat and dog   ") == ["cat", "dog"] 
 
-            # Process the query
-            parseSearchQuery(query)
-
-            # Mark the task as done
-            processingQueue.task_done()
-        except Exception as e:
-            logging.error(f"Error in processQueue: {str(e)}")
-
-
-def rankingAPI(structuredQuery):
-    """
-    Mock function to simulate interaction with the Ranking API.
-
-    Args:
-        structuredQuery (dict): Structured query from generateQueries().
-
-    Returns:
-        rankedDocumentIds (list): A list of ranked document IDs.
-    """
-    # Mock document IDs
-    rankedDocumentIds = [1, 2, 3, 4, 5]
-    return rankedDocumentIds
-
-
-def documentDataStoreAPI(docId):
-    """
-    Mock function to simulate fetching document metadata and content from the Document Data Store API.
-
-    Args:
-        docId (int): Document ID.
-
-    Returns:
-        document (dict): Contains document metadata, title, link, and text content.
-    """
-    processingQueue.join()
-    client = MongoClient("mongodb://128.113.126.79:27017")
-    db = client.test
-    collection = db.RAW
-    result = collection.find()
-    for i in result:
-        print(i)
-    return result
-
-
-# Start the processing thread
-processingThread = threading.Thread(target=processQueue, daemon=True)
-processingThread.start()
+def runTest(): 
+    receiveQueryTest() 
+    parseSearchQueryTest()
 
 # Example usage
 if __name__ == "__main__":
-    # Simulate receiving queries from users
-    #receiveQuery("OpenAI develops advanced AI models.", userId=1)
-    #receiveQuery("Python programming language tutorial.", userId=2)
+    # Set up logging
+    logging.basicConfig(level=logging.INFO, 
+                        format='%(asctime)s - %(levelname)s - %(message)s')
+    
+    # Start the processing thread
+    processingThread = threading.Thread(target=processQueue, daemon=True)
+    processingThread.start()    
 
-    # Wait for the processing queue to be empty
+    getNLTKData()
+    # runTest()
+
     documentDataStoreAPI('xddqb140kx4q4i0qisodfm12')
