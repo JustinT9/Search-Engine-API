@@ -4,6 +4,7 @@ import threading
 import json
 import logging
 import nltk
+import requests
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 from pymongo import MongoClient
@@ -31,7 +32,7 @@ def processQueue():
             query, userId = processingQueue.get()
 
             # Process the query
-            parseSearchQuery(query)
+            parseSearchQuery(query, userId)
 
             # Mark the task as done
             processingQueue.task_done()
@@ -130,7 +131,10 @@ def generateQueries(tokens):
         rankedDocumentIds (list): A list of ranked document IDs.
 """
 def mockRankingAPI():
-    return [1, 2, 3, 4, 5]
+    userId, query = processingQueue.get()
+    x = requests.get(f"http://lspt-index-ranking.cs.rpi.edu:6060/getDocumentScores?id={userId}&text={query}")
+    print(x)
+    return x;
 
 """
     Function to fetch document metadata and content from the Document Data Store API.
@@ -150,7 +154,6 @@ def documentDataStoreAPI(docId):
     for i in result:
         print(i)
     return result
-
 
 """
     Retrieves documents based on ranked document IDs.
@@ -269,7 +272,9 @@ if __name__ == "__main__":
     processingThread = threading.Thread(target=processQueue, daemon=True)
     processingThread.start()    
 
-    getNLTKData()
+    # getNLTKData()
+    processingQueue.put((1, ""))
+    mockRankingAPI()
     # runTest()
 
-    documentDataStoreAPI('xddqb140kx4q4i0qisodfm12')
+    #documentDataStoreAPI('xddqb140kx4q4i0qisodfm12')
