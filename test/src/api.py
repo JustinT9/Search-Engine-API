@@ -4,6 +4,7 @@ import threading
 import json
 import logging
 import nltk
+import spacy
 import requests
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
@@ -12,6 +13,7 @@ from fastapi import FastAPI
 
 processingQueue = queue.Queue()
 api = FastAPI()
+nlp = spacy.load("en_core_web_sm")
 
 def getNLTKData(): 
     try:
@@ -101,6 +103,14 @@ def parseSearchQuery(query):
     except Exception as e:
         logging.error(f"Error in parseSearchQuery: {str(e)}")
         return []
+
+"""
+Served as a stub while unit-testing during Team Deliverable 2.
+"""
+def parseSearchQueryStub():
+    doc = nlp(query)
+    lemmatized = [token.lemma_ for token in doc if not token.is_stop or not token.pos_ == "ADP"]
+    return lemmatized
 
 """
     Formats the tokenized query into structured queries for ranking.
