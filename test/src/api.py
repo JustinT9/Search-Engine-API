@@ -8,14 +8,18 @@ import requests
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 from pymongo import MongoClient
+from fastapi import FastAPI
 
 processingQueue = queue.Queue()
+api = FastAPI()
 
 def getNLTKData(): 
     try:
         nltk.data.find('tokenizers/punkt_tab')
     except LookupError:
         nltk.download('punkt_tab')
+        nltk.download('wordnet')
+        nltk.download('omw-1.4')
 
     try:
         nltk.data.find('corpora/stopwords')
@@ -28,11 +32,11 @@ def getNLTKData():
 def processQueue():
     while True:
         try:
-            # Get the next query from the queue
-            query, userId = processingQueue.get()
+            userId, query = processingQueue.get()
 
-            # Process the query
-            parseSearchQuery(query, userId)
+            tokens = ' '.join(parseSearchQuery(query))
+
+            mockRankingAPI(userId, tokens)
 
             # Mark the task as done
             processingQueue.task_done()
@@ -56,7 +60,7 @@ def receiveQuery(query, userId=None):
         logging.info(f"Received query from user {userId}: {query}")
 
         # Add the query to the processing queue
-        processingQueue.put((query, userId))
+        processingQueue.put((userId, query))
         
         return True 
     
@@ -130,8 +134,7 @@ def generateQueries(tokens):
     Returns:
         rankedDocumentIds (list): A list of ranked document IDs.
 """
-def mockRankingAPI():
-    userId, query = processingQueue.get()
+def mockRankingAPI(userId, query):
     x = requests.get(f"http://lspt-index-ranking.cs.rpi.edu:6060/getDocumentScores?id={userId}&text={query}")
     print(x)
     return x;
@@ -145,8 +148,8 @@ def mockRankingAPI():
     Returns:
         document (dict): Contains document metadata, title, link, and text content.
 """
-def documentDataStoreAPI(docId):
-    # processingQueue.join()
+def documentDataStoreAPI():
+    processingQueue.join()
     client = MongoClient("mongodb://128.113.126.79:27017")
     db = client.test
     collection = db.RAW
@@ -258,6 +261,44 @@ def parseSearchQueryTest():
     assert parseSearchQuery("a") == []
     assert parseSearchQuery("   cat and dog   ") == ["cat", "dog"] 
 
+"""
+Generates snippet from document data
+Args:
+    documentContent: String containing the full content of the document.
+    tokenizedQuery (list): Tokenized and preprocessed query from parseSearchQuery().
+Returns:
+    snippet: Snippet string for document
+"""
+def generateSnippet(documentContent, tokenizedQuery):
+    try:
+        snippet = ""
+        maxWordCount = 0
+        # Get each individual sentence in document
+        sentences = nltk.sent_tokenize(documentContent)
+        
+        for sentence in sentences:
+            wordCount = 0
+            # tokenize sentence using same method as query
+            words = nltk.word_tokenize(sentence)
+            words = [word.lower() for word in words if word.isalnum()]
+            stemmer = PorterStemmer()
+            words = [stemmer.stem(word) for word in words]
+            # Count how many words in the query are in the current sentence
+            for queryWord in tokenizedQuery:
+                for docWord in words:
+                    if queryWord == docWord: 
+                        wordCount = wordCount + 1
+            # If sentence has more query words than current snippet, it is the new snippet
+            if wordCount > maxWordCount:
+                snippet = sentence
+                maxWordCount = wordCount
+        
+        return snippet
+    
+    except Exception as e:
+        logging.error(f"Error in generateSnippet: {str(e)}")
+        return ""
+
 def runTest(): 
     receiveQueryTest() 
     parseSearchQueryTest()
@@ -268,13 +309,22 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, 
                         format='%(asctime)s - %(levelname)s - %(message)s')
     
+    # setup text processing
+    getNLTKData()
+
     # Start the processing thread
+    """
     processingThread = threading.Thread(target=processQueue, daemon=True)
     processingThread.start()    
 
-    # getNLTKData()
-    processingQueue.put((1, ""))
-    mockRankingAPI()
-    # runTest()
 
-    #documentDataStoreAPI('xddqb140kx4q4i0qisodfm12')
+    ### TODO: setup UI/UX; the following is mock data
+    receiveQuery(1, "BIG CHUNGUS")
+    receiveQuery(2, "Where is DCC?")
+    receiveQuery(3, "I can't find West Hall.")
+    receiveQuery(4, "Professor Goldschmidt OFfice hours")
+    receiveQuery(5, "reddit.com")
+    """
+
+    ### TODO: get documents with returned IDs
+    documentDataStoreAPI()
