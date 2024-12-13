@@ -90,6 +90,20 @@ class TestSearchQuery(unittest.TestCase):
         self.assertTrue(len(parseSearchQuery("I'll")) == 2)
         self.assertTrue(len(parseSearchQuery("doesn't")) == 2)
 
+    def parseSearchQueryTest(self):
+        self.assertTrue(parseSearchQuery("hello") == ["hello"])
+        self.assertTrue(parseSearchQuery("HeLLo WorLd") == ["hello", "world"])
+        self.assertTrue(parseSearchQuery("HeLlo") == ["hello"])
+        self.assertTrue(parseSearchQuery("HeLLo WorLd") == ["hello", "world"])
+        self.assertTrue(parseSearchQuery("to") == [])
+        self.assertTrue(parseSearchQuery("To be, or not to be") == [])
+        self.assertTrue(parseSearchQuery("C++ programming guide: variables & pointers (2024)!") == ["program", "guid", "variabl", "pointer", "2024"])
+        self.assertTrue(parseSearchQuery("there are fishies in the pond") == ["fishi", "pond"])
+        self.assertTrue(parseSearchQuery("\"exact phrase search\"") == ["exact", "phrase", "search"])
+        self.assertTrue(parseSearchQuery("") == [])
+        self.assertTrue(parseSearchQuery("a") == [])
+        self.assertTrue(parseSearchQuery("   cat and dog   ") == ["cat", "dog"])
+
 if __name__ == "__main__":
     getNLTKData()
     unittest.main()

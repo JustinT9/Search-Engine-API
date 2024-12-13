@@ -35,8 +35,9 @@ def processQueue():
             userId, query = processingQueue.get()
 
             tokens = ' '.join(parseSearchQuery(query))
+            print(tokens)
 
-            mockRankingAPI(userId, tokens)
+            getDocumentScores(userId, tokens)
 
             # Mark the task as done
             processingQueue.task_done()
@@ -129,14 +130,15 @@ def generateQueries(tokens):
     Mock function to simulate interaction with the Ranking API.
 
     Args:
-        None 
+        userID - ID of user performing query
+        query - tokenized string to rank documents
 
     Returns:
         rankedDocumentIds (list): A list of ranked document IDs.
 """
-def mockRankingAPI(userId, query):
+def getDocumentScores(userId, query):
     x = requests.get(f"http://lspt-index-ranking.cs.rpi.edu:6060/getDocumentScores?id={userId}&text={query}")
-    print(x)
+    # print(x)
     return x;
 
 """
@@ -148,15 +150,14 @@ def mockRankingAPI(userId, query):
     Returns:
         document (dict): Contains document metadata, title, link, and text content.
 """
-def documentDataStoreAPI():
-    processingQueue.join()
+def getDocuments(docID):
     client = MongoClient("mongodb://128.113.126.79:27017")
     db = client.test
     collection = db.RAW
     result = collection.find()
-    for i in result:
-        print(i)
-    return result
+    filtered = [i for i in result if i['_id'] == docID]
+    MongoClient.close(client)
+    return filtered 
 
 """
     Retrieves documents based on ranked document IDs.
@@ -173,8 +174,8 @@ def retrieveDocuments():
 
         # Fetch documents from the Document Data Store API
         retrievedDocuments = []
-        for docID in mockRankingAPI():
-            document = documentDataStoreAPI(docID)
+        for docID in getDocumentScores():
+            document = getDocuments(docID)
             if document:
                 retrievedDocuments.append(document)
 
@@ -233,34 +234,6 @@ def sendDocuments(processedDocuments):
         responseJson = json.dumps(response, indent=2)
         print(responseJson)
 
-def receiveQueryTest(): 
-    assert receiveQuery("hello", "user1") == True  
-    assert receiveQuery("hello world", "user2") == True 
-    assert receiveQuery("HelLo", "user1") == True 
-    assert receiveQuery("HeLLo WorLd", "user3") == True
-    assert receiveQuery("to", "user4") == True 
-    assert receiveQuery("To be, or not to be", "user5") == True
-    assert receiveQuery("C++ programming guide: variables & pointers (2024)!", "user5") == True
-    assert receiveQuery("there are fishies in the pond", "user5") == True 
-    assert receiveQuery("\"exact phrase search\"", "user6") == True 
-    assert receiveQuery("", "user7") == True
-    assert receiveQuery("a", "user8") == True 
-    assert receiveQuery("   cat and dog   ", "user8") == True 
-
-def parseSearchQueryTest():
-    assert parseSearchQuery("hello") == ["hello"]
-    assert parseSearchQuery("HeLLo WorLd") == ["hello", "world"]
-    assert parseSearchQuery("HeLlo") == ["hello"]
-    assert parseSearchQuery("HeLLo WorLd") == ["hello", "world"]
-    assert parseSearchQuery("to") == []
-    assert parseSearchQuery("To be, or not to be") == []
-    assert parseSearchQuery("C++ programming guide: variables & pointers (2024)!") == ["program", "guid", "variabl", "pointer", "2024"]
-    assert parseSearchQuery("there are fishies in the pond") == ["fishi", "pond"]
-    assert parseSearchQuery("\"exact phrase search\"") == ["exact", "phrase", "search"]
-    assert parseSearchQuery("") == []
-    assert parseSearchQuery("a") == []
-    assert parseSearchQuery("   cat and dog   ") == ["cat", "dog"] 
-
 """
 Generates snippet from document data
 Args:
@@ -299,9 +272,6 @@ def generateSnippet(documentContent, tokenizedQuery):
         logging.error(f"Error in generateSnippet: {str(e)}")
         return ""
 
-def runTest(): 
-    receiveQueryTest() 
-    parseSearchQueryTest()
 
 # Example usage
 if __name__ == "__main__":
@@ -313,10 +283,8 @@ if __name__ == "__main__":
     getNLTKData()
 
     # Start the processing thread
-    """
-    processingThread = threading.Thread(target=processQueue, daemon=True)
-    processingThread.start()    
-
+    #processingThread = threading.Thread(target=processQueue, daemon=True)
+    #processingThread.start()    
 
     ### TODO: setup UI/UX; the following is mock data
     receiveQuery(1, "BIG CHUNGUS")
@@ -324,7 +292,14 @@ if __name__ == "__main__":
     receiveQuery(3, "I can't find West Hall.")
     receiveQuery(4, "Professor Goldschmidt OFfice hours")
     receiveQuery(5, "reddit.com")
-    """
 
-    ### TODO: get documents with returned IDs
-    documentDataStoreAPI()
+    while True:
+        try:
+            userId, query = processingQueue.get()
+
+            tokens = ' '.join(parseSearchQuery(query))
+            print(tokens)
+
+            getDocumentScores(userId, tokens)
+        except Exception as e:
+            logging.error(f"Error in processQueue: {str(e)}")
