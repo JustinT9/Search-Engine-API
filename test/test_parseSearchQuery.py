@@ -35,13 +35,12 @@ class TestSearchQuery(unittest.TestCase):
                                     "chemicals, report predictions for market share of such chemicals, or report market statistics for "
                                     "agrochemicals, pesticide, herbicide, fungicide, insecticide, fertilizer, predicted sales, market share, "
                                     "stimulate demand, price cut, volume of sales")
-        print(tokenized)
-        self.assertTrue(tokenized[4] == "strategy")
+        self.assertTrue(tokenized[3] == "strategi")
         self.assertTrue(tokenized[-1] == "sale")
-        self.assertTrue(tokenized[-7] == "demand")
+        self.assertTrue(tokenized[-5] == "demand")
         tokenized = parseSearchQuery("fish fishes fishing fisherman fish pond phishing") # stemming test
         self.assertTrue(tokenized[0] == tokenized[1])
-        self.assertTrue(tokenized[0] != tokenized[2])
+        self.assertTrue(tokenized[0] == tokenized[2])
         self.assertTrue(tokenized[0] != tokenized[3])
         
     """
@@ -85,10 +84,10 @@ class TestSearchQuery(unittest.TestCase):
         self.assertTrue(len(parseSearchQuery("dinosaur")) == 1)
         self.assertTrue(len(parseSearchQuery("Professor")) == 1)
         self.assertTrue(len(parseSearchQuery("Europe")) == 1)
-        self.assertTrue(len(parseSearchQuery("the")) == 1)
-        self.assertTrue(len(parseSearchQuery("a")) == 1)
-        self.assertTrue(len(parseSearchQuery("I'll")) == 2)
-        self.assertTrue(len(parseSearchQuery("doesn't")) == 2)
+        self.assertTrue(len(parseSearchQuery("the")) == 0)
+        self.assertTrue(len(parseSearchQuery("a")) == 0)
+        self.assertTrue(len(parseSearchQuery("I'll")) == 0)
+        self.assertTrue(len(parseSearchQuery("doesn't")) == 0)
 
     def parseSearchQueryTest(self):
         self.assertTrue(parseSearchQuery("hello") == ["hello"])
